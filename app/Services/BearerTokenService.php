@@ -69,7 +69,5 @@ class BearerTokenService
 
         $data = json_decode($response, true);
         return $data['access_token'] ?? null;
-        //$data = $response->json();
-
     }
 }
