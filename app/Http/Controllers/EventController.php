@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use App\Services\EventService;
+use App\Http\Requests\EventRequest;
 use Exception;
 use Redirect;
 
@@ -21,47 +23,15 @@ class EventController extends Controller
     $this->url = Config::get('values.url') . '/events';
   }
 
-  private function getAccessToken()
+  public function index(EventService $eventService)
   {
-    //     $clientId = "36f16afa-a628-44ca-bbcd-44559771bdcd";
-    //     $clientSecret = "bubtdyqxv0pv5zwf007payoofgsscwwjqcki8dekeccx";
-
-    //     $url = "{$this->apiBase}/Auth";
-    //     $postData = [
-    //         "ClientId" => $clientId,
-    //         "ClientSecret" => $clientSecret,
-    //     ];
-
-    //     $ch = curl_init($url);
-    //     curl_setopt($ch, CURLOPT_POST, true);
-    //     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-    //     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
-    //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    //     $response = curl_exec($ch);
-    //     curl_close($ch);
-
-    //     $data = json_decode($response, true);
-    //     return $data['access_token'] ?? null;
-  }
-
-
-  // Display Event List
-  public function index()
-  {
-
-    //dd(request()->headers->all());
-    // $accessToken = $this->getAccessToken();
-    $ch = curl_init($this->url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer  $this->accessToken"]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $events = json_decode($response, true);
-    //dd($events);
-    return view('events.index', ['events' => $events['items'] ?? []]);
+    try {
+      $events = $eventService->getEvents();
+      //dd($events);
+      return view('events.index', ['events' => $events['items'] ?? []]);
+    } catch (\App\Exceptions\ApiException $e) {
+      return back()->withErrors($e->getMessage());
+    }
   }
 
   // Show Add Event Form
@@ -71,89 +41,32 @@ class EventController extends Controller
   }
 
   // Store New Event
-  public function store(Request $request)
+  public function store(EventRequest $request, EventService $eventService)
   {
-    // $accessToken = $this->getAccessToken();
-    // $url = "{$this->apiBase}/events";
-    //dd($request);
-    //$this->validateInput($request->all());
-    //dd($request->all());
-    //dd($postData);
-    $errors = [];
-    $title = $request->input('title');
-    $description = $request->input('description');
-    $startDate = $request->input('startDate');
-    $endDate = $request->input('endDate');
-
-    if (empty($title)) {
-      $errors[] = 'The title is required.';
+    try {
+      //dd($request->validated());
+      $eventService->createEvent($request->validated());
+      return redirect()->route('event.index')->with('message', 'Event added successfully.');
+    } catch (\App\Exceptions\ApiException $e) {
+      return back()->withErrors($e->getMessage());
     }
-
-    if (empty($description)) {
-      $errors[] = 'The description is required.';
-    }
-
-    if (empty($startDate)) {
-      $errors[] = 'The start date is required.';
-    } elseif (!strtotime($startDate)) {
-      $errors[] = 'The start date must be a valid date.';
-    }
-
-    if (empty($endDate)) {
-      $errors[] = 'The end date is required.';
-    } elseif (!strtotime($endDate)) {
-      $errors[] = 'The end date must be a valid date.';
-    }
-
-    if (!empty($startDate) && !empty($endDate) && strtotime($startDate) > strtotime($endDate)) {
-      $errors[] = 'The start date cannot be later than the end date.';
-    }
-
-
-    if (!empty($errors)) {
-
-      return redirect('/event/create')->withErrors(['errors' => $errors]);
-    }
-
-    $postData = [
-      "title" => $request->input('title'),
-      "description" => $request->input('description'),
-      "startDate" => $request->input('startDate'),
-      "endDate" => $request->input('endDate'),
-    ];
-
-    //dd($request->input('start_date'));
-
-    $ch = curl_init($this->url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-      "Authorization: Bearer $this->accessToken",
-      "Content-Type: application/json"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    $response = curl_exec($ch);
-    //dd($response);
-    curl_close($ch);
-
-    return redirect()->route('event.index')->with('message', 'Event added successfully!');
   }
 
+
   // Show Event Details
-  public function show($id)
+  public function show($id, EventService $eventService)
   {
-    //$accessToken = $this->getAccessToken();
-    //$url = "{$this->apiBase}/events/{$id}";
 
-    $ch = curl_init($this->url . '/' . $id);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $this->accessToken"]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $event = json_decode($response, true);
-    return view('events.show', ['event' => $event]);
+    try {
+      //dd($request->validated());
+      $event = $eventService->showEvent($id);
+      // return redirect()->route('event.index')->with('message', 'Event added successfully.');
+      return view('events.show', ['event' => $event]);
+    } catch (\App\Exceptions\ApiException $e) {
+      return back()->withErrors($e->getMessage());
+    }
+  // } catch (\Exception $e) {
+  //   return back()->withErrors($e->getMessage())->withInput();
+  // }
   }
 }

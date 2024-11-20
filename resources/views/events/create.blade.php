@@ -3,13 +3,7 @@
 @section('content')
     <h1>Add Event</h1>
     @if (isset($errors) && count($errors) > 0)
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
+    <x-error-messages />
     @endif
     <form action="{{ route('event.store') }}" method="POST">
         @csrf
